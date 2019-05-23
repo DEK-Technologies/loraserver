@@ -7,8 +7,11 @@ Vagrantfile
 # logs
 *.log
 
+# test coverage
+coverage.out
+
 # configuration
-*.toml
+/*.toml
 
 # dependencies
 /vendor/

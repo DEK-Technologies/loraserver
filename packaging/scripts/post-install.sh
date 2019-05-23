@@ -9,15 +9,12 @@ DAEMON_GROUP=loraserver
 
 function install_init {
 	cp -f $SCRIPT_DIR/$NAME.init /etc/init.d/$NAME
-	cp -f $SCRIPT_DIR/$NAME-mqtt2to3.init /etc/init.d/$NAME-mqtt2to3
 	chmod +x /etc/init.d/$NAME
-	chmod +x /etc/init.d/$NAME-mqtt2to3
 	update-rc.d $NAME defaults
 }
 
 function install_systemd {
 	cp -f $SCRIPT_DIR/$NAME.service /lib/systemd/system/$NAME.service
-	cp -f $SCRIPT_DIR/$NAME-mqtt2to3.service /lib/systemd/system/$NAME-mqtt2to3.service
 	systemctl daemon-reload
 	systemctl enable $NAME
 }
@@ -39,31 +36,47 @@ if [[ $? -ne 0 ]]; then
 	useradd --system -U -M $DAEMON_USER -s /bin/false -d /etc/$NAME
 fi
 
-mkdir -p "$LOG_DIR"
-chown $DAEMON_USER:$DAEMON_GROUP "$LOG_DIR"
-
-# create configuration directory
-if [[ ! -d /etc/$NAME ]]; then
-	mkdir /etc/$NAME
-	chown $DAEMON_USER:$DAEMON_GROUP /etc/$NAME
+# set the configuration owner / permissions
+if [[ -f /etc/$NAME/$NAME.toml ]]; then
+	chown -R $DAEMON_USER:$DAEMON_GROUP /etc/$NAME
 	chmod 750 /etc/$NAME
+	chmod 640 /etc/$NAME/$NAME.toml
 fi
 
-# create example configuration file
-if [[ ! -f /etc/$NAME/$NAME.toml ]]; then
-	$NAME configfile > /etc/$NAME/$NAME.toml
-	chown $DAEMON_USER:$DAEMON_GROUP /etc/$NAME/$NAME.toml
-	chmod 640 /etc/$NAME/$NAME.toml
+# show message on install
+if [[ $? -eq 0 ]]; then
 	echo -e "\n\n\n"
 	echo "---------------------------------------------------------------------------------"
-	echo "A sample configuration file has been copied to: /etc/$NAME/$NAME.toml"
-	echo "After setting the correct values, run the following command to start $NAME:"
+	echo "The configuration file is located at:"
+	echo " /etc/$NAME/$NAME.toml"
+	echo ""
+	echo "Some helpful commands for $NAME:"
 	echo ""
 	which systemctl &>/dev/null
 	if [[ $? -eq 0 ]]; then
-		echo "$ sudo systemctl start $NAME"
+		echo "Start:"
+		echo " $ sudo systemctl start $NAME"
+		echo ""
+		echo "Restart:"
+		echo " $ sudo systemctl restart $NAME"
+		echo ""
+		echo "Stop:"
+		echo " $ sudo systemctl stop $NAME"
+		echo ""
+		echo "Display logs:"
+		echo " $ sudo journalctl -f -n 100 -u $NAME"
 	else
-		echo "$ sudo /etc/init.d/$NAME start"
+		echo "Start:"
+		echo " $ sudo /etc/init.d/$NAME start"
+		echo ""
+		echo "Restart:"
+		echo " $ sudo /etc/init.d/$NAME restart"
+		echo ""
+		echo "Stop:"
+		echo " $ sudo /etc/init.d/$NAME stop"
+		echo ""
+		echo "Display logs:"
+		echo " $ sudo tail -f -n 100 $LOG_DIR"
 	fi
 	echo "---------------------------------------------------------------------------------"
 	echo -e "\n\n\n"
@@ -77,6 +90,7 @@ else
 	install_init
 fi
 
+# restart on upgrade
 if [[ -n $2 ]]; then
 	restart_service
 fi
